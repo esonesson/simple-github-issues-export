@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Issues</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      :after,
+      :before {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: "Roboto", sans-serif;
+      }
+      h1,
+      h2 {
+        font-weight: 700;
+      }
+      .hidden {
+        display: none;
+      }
+      pre {
+        background-color: #f1f1f1;
+        border-radius: 4px;
+        padding: 20px 30px;
+        margin: 0;
+        color: #333;
+      }
+      .wrapper {
+        width: 100%;
+        max-width: 1500px;
+        position: relative;
+        margin: 0 auto;
+        padding: 0 20px;
+      }
+      table {
+        border-collapse: collapse;
+        margin: 25px 0;
+        font-size: 0.9em;
+        font-family: sans-serif;
+        min-width: 400px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+        border-top-right-radius: 4px;
+        border-top-left-radius: 4px;
+        overflow: hidden;
+      }
+      table thead tr {
+        background-color: #009879;
+        color: #ffffff;
+        text-align: left;
+      }
+      table th,
+      table td {
+        padding: 12px 15px;
+      }
+      table tbody tr {
+        border-bottom: 1px solid #dddddd;
+      }
+
+      table tbody tr:nth-of-type(even) {
+        background-color: #f3f3f3;
+      }
+
+      table tbody tr:last-of-type {
+        border-bottom: 2px solid #009879;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="wrapper">
+      <h1>
+        Github Issues
+        <span id="project-title-container" class="hidden"
+          >for <em id="project-title"></em
+        ></span>
+      </h1>
+      <button id="fetch-table-btn">Show in Table</button>
+      <button id="fetch-csv-btn">Show as CSV</button>
+
+      <p id="loading" class="message hidden">Loading...</p>
+      <p id="empty" class="message hidden">No issues found.</p>
+      <p id="error" class="message hidden">An error occured.</p>
+
+      <table id="issues-table" class="hidden">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Assignees</th>
+            <th>Status</th>
+            <th>Milestone</th>
+            <th>Development Area</th>
+            <th>Dev Estimate</th>
+            <th>Sprint</th>
+          </tr>
+        </thead>
+        <tbody id="issue-table-rows"></tbody>
+      </table>
+
+      <pre id="issues-csv-rows" class="hidden"></pre>
+    </div>
+
+    <script type="text/javascript">
+      const owner = "<owner>"
+      const repo = "<repo>"
+      const projectId = 1
+      const token = "<token>"
+      const fetchTableBtnElem = document.getElementById("fetch-table-btn")
+      const fetchCsvBtnElem = document.getElementById("fetch-csv-btn")
+      const projectTitleContainerElem = document.getElementById(
+        "project-title-container"
+      )
+      const projectTitleElem = document.getElementById("project-title")
+      const issuesTableElem = document.getElementById("issues-table")
+      const issuesCsvElem = document.getElementById("issues-csv-rows")
+      const issuesTableRowsElem = document.getElementById("issue-table-rows")
+
+      // messages
+      const loadingMsgElem = document.getElementById("loading")
+      const emptyMsgElem = document.getElementById("empty")
+      const errorMsgElem = document.getElementById("error")
+
+      // fetched from the API
+      let projectTitle = ""
+      let rawIssuesList = []
+      let issuesList = []
+
+      const getQuery = (after = "") => {
+        return `
+        query QueryIssues {
+          repository(name: "${repo}", owner: "${owner}") {
+            projectV2(number: ${projectId}) {
+              id
+              title
+              items(first: 100, after: "${after}") {
+                nodes {
+                  fieldValues(first: 20) {
+                    nodes {
+                      ... on ProjectV2ItemFieldSingleSelectValue {
+                        name
+                        id
+                        field {
+                          ... on ProjectV2SingleSelectField {
+                            id
+                            name
+                          }
+                        }
+                      }
+                      ... on ProjectV2ItemFieldMilestoneValue {
+                        milestone {
+                          id
+                          title
+                        }
+                        field {
+                          ... on ProjectV2Field {
+                            id
+                            name
+                          }
+                        }
+                      }
+                      ... on ProjectV2ItemFieldNumberValue {
+                        id
+                        number
+                      }
+                      ... on ProjectV2ItemFieldNumberValue {
+                        id
+                        number
+                        field {
+                          ... on ProjectV2Field {
+                            id
+                            name
+                          }
+                        }
+                      }
+                      ... on ProjectV2ItemFieldIterationValue {
+                        id
+                        title
+                        field {
+                          ... on ProjectV2IterationField {
+                            id
+                            name
+                          }
+                        }
+                      }
+                    }
+                  }
+                  content {
+                    ... on DraftIssue {
+                      id
+                      title
+                      assignees(first: 100) {
+                        nodes {
+                          login
+                        }
+                      }
+                    }
+                    ... on Issue {
+                      id
+                      title
+                      assignees(first: 10) {
+                        nodes {
+                          login
+                        }
+                      }
+                    }
+                  }
+                }
+                pageInfo {
+                  endCursor
+                  hasNextPage
+                }
+              }
+            }
+          }
+        }
+        `
+      }
+
+      const resetMessages = () => {
+        emptyMsgElem.classList.add("hidden")
+        errorMsgElem.classList.add("hidden")
+      }
+
+      const hideButtons = () => {
+        fetchTableBtnElem.classList.add("hidden")
+        fetchCsvBtnElem.classList.add("hidden")
+      }
+
+      const hideLoader = () => {
+        loadingMsgElem.classList.add("hidden")
+      }
+
+      const showLoader = () => {
+        loadingMsgElem.classList.remove("hidden")
+      }
+
+      const showEmptyResponse = () => {
+        emptyMsgElem.classList.remove("hidden")
+      }
+
+      const showError = () => {
+        errorMsgElem.classList.remove("hidden")
+      }
+
+      const showTitle = () => {
+        projectTitleElem.appendChild(document.createTextNode(projectTitle))
+        projectTitleContainerElem.classList.remove("hidden")
+      }
+
+      const showIssues = type => {
+        if (type === "table") {
+          issuesTableElem.classList.remove("hidden")
+        } else if (type === "csv") {
+          issuesCsvElem.classList.remove("hidden")
+        }
+      }
+
+      const parseIssues = type => {
+        let parsedIssues = []
+
+        rawIssuesList.map(item => {
+          const assignees = item.content.assignees.nodes.map(
+            assignee => assignee.login
+          )
+          const status = item.fieldValues.nodes.find(obj =>
+            obj.field?.name ? obj.field.name === "Status" : false
+          )
+          const milestone = item.fieldValues.nodes.find(obj =>
+            obj?.field?.name ? obj.field.name === "Milestone" : false
+          )
+          const developmentArea = item.fieldValues.nodes.find(obj =>
+            obj?.field?.name ? obj.field.name === "Development area" : false
+          )
+          const devEstimate = item.fieldValues.nodes.find(obj =>
+            obj?.field?.name ? obj.field.name === "Dev estimate" : false
+          )
+          const sprint = item.fieldValues.nodes.find(obj =>
+            obj?.field?.name ? obj.field.name === "Sprint" : false
+          )
+
+          parsedIssues.push({
+            title: item.content.title,
+            assignees: assignees.join("+"),
+            status: status ? status.name : "-",
+            milestone: milestone ? milestone.milestone.title : "-",
+            developmentArea: developmentArea ? developmentArea.name : "-",
+            devEstimate: devEstimate ? devEstimate.number : "-",
+            sprint: sprint ? sprint.title : "-",
+          })
+        })
+
+        setIssues(parsedIssues, type)
+      }
+
+      const setIssues = (issues, type) => {
+        if (type === "csv") {
+          let csvString =
+            "Title,Assignees,Status,Milestone,Development Area,Dev Estimate,Sprint\n"
+          for (let i in issues) {
+            csvString = csvString.concat(
+              `${issues[i].title},${issues[i].assignees},${issues[i].status},${issues[i].milestone},${issues[i].developmentArea},${issues[i].devEstimate},${issues[i].sprint}\n`
+            )
+          }
+          issuesCsvElem.appendChild(document.createTextNode(csvString))
+        } else if (type === "table") {
+          for (let i in issues) {
+            let tr = document.createElement("tr")
+            tr.innerHTML = `
+            <td>${issues[i].title}</td>
+            <td>${issues[i].assignees}</td>
+            <td>${issues[i].status}</td>
+            <td>${issues[i].milestone}</td>
+            <td>${issues[i].developmentArea}</td>
+            <td>${issues[i].devEstimate}</td>
+            <td>${issues[i].sprint}</td>
+        `
+            issuesTableRowsElem.appendChild(tr)
+          }
+        }
+        showIssues(type)
+      }
+
+      const fetchIssues = async (after = "") => {
+        const response = await fetch(`https://api.github.com/graphql`, {
+          method: "POST",
+          headers: {
+            Accept: "application/vnd.github.v3+json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            operationName: "QueryIssues",
+            query: getQuery(after),
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          const {
+            data: {
+              repository: { projectV2: project },
+            },
+          } = data
+          projectTitle = project.title
+
+          const {
+            items: { nodes, pageInfo },
+          } = project
+          rawIssuesList.push(...nodes)
+
+          if (pageInfo.hasNextPage) {
+            await fetchIssues(pageInfo.endCursor)
+          }
+        }
+      }
+
+      const handleFetch = async type => {
+        resetMessages()
+        hideButtons()
+        showLoader()
+
+        try {
+          await fetchIssues()
+          showTitle()
+          parseIssues(type)
+        } catch (error) {
+          console.error(error)
+          showError()
+        } finally {
+          hideLoader()
+        }
+      }
+
+      fetchTableBtnElem.addEventListener("click", () => handleFetch("table"))
+      fetchCsvBtnElem.addEventListener("click", () => handleFetch("csv"))
+    </script>
+  </body>
+</html>

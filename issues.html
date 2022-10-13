@@ -18,6 +18,7 @@
       body {
         margin: 0;
         padding: 0;
+        font-size: 62.5%;
       }
       body {
         font-family: "Roboto", sans-serif;
@@ -25,6 +26,12 @@
       h1,
       h2 {
         font-weight: 700;
+      }
+      h1 {
+        font-size: 2rem;
+      }
+      p {
+        font-size: 1.4rem;
       }
       .hidden {
         display: none;
@@ -35,6 +42,7 @@
         padding: 20px 30px;
         margin: 0;
         color: #333;
+        font-size: 1.4rem;
       }
       .wrapper {
         width: 100%;
@@ -53,6 +61,7 @@
         border-top-right-radius: 4px;
         border-top-left-radius: 4px;
         overflow: hidden;
+        font-size: 1.4rem;
       }
       table thead tr {
         background-color: #009879;
@@ -74,6 +83,41 @@
       table tbody tr:last-of-type {
         border-bottom: 2px solid #009879;
       }
+      form {
+        width: 100%;
+        max-width: 250px;
+        border-radius: 4px;
+        background-color: #f1f1f1;
+        padding: 20px;
+      }
+      form p {
+        font-size: 1.4rem;
+        margin-bottom: 5px;
+      }
+      .input-container {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 15px;
+      }
+      label {
+        font-size: 1.4rem;
+        margin-bottom: 5px;
+      }
+      input[type="text"],
+      input[type="number"] {
+        padding: 5px 10px;
+        border: 1px solid #999;
+        border-radius: 4px;
+      }
+      button[type="submit"] {
+        width: 100%;
+        padding: 10px 0;
+        margin-top: 20px;
+        background-color: #999;
+        border-radius: 4px;
+        border: unset;
+        color: #fff;
+      }
     </style>
   </head>
 
@@ -85,8 +129,46 @@
           >for <em id="project-title"></em
         ></span>
       </h1>
-      <button id="fetch-table-btn">Show in Table</button>
-      <button id="fetch-csv-btn">Show as CSV</button>
+      <form id="issues-form">
+        <div class="input-container">
+          <label for="owner">Repo Owner</label>
+          <input type="text" name="owner" id="owner" required />
+        </div>
+        <div class="input-container">
+          <label for="repo">Repo</label>
+          <input type="text" name="repo" ir="repo" required />
+        </div>
+        <div class="input-container">
+          <label for="projectId">Project Id</label>
+          <input type="number" name="projectId" id="projectId" required />
+        </div>
+        <div class="input-container">
+          <label for="separator">CSV Separator</label>
+          <input type="text" name="separator" id="separator" />
+        </div>
+        <div class="input-container">
+          <p>Presentation</p>
+          <div>
+            <input
+              type="radio"
+              id="type-csv"
+              name="presentation"
+              value="csv"
+              checked
+            />
+            <label for="type-csv">CSV</label>
+
+            <input
+              type="radio"
+              id="type-table"
+              name="presentation"
+              value="table"
+            />
+            <label for="type-table">Table</label>
+          </div>
+        </div>
+        <button type="submit">Fetch Issues</button>
+      </form>
 
       <p id="loading" class="message hidden">Loading...</p>
       <p id="empty" class="message hidden">No issues found.</p>
@@ -111,10 +193,11 @@
     </div>
 
     <script type="text/javascript">
-      const owner = "<owner>"
-      const repo = "<repo>"
-      const projectId = 1
+      let owner = "<owner>"
+      let repo = "<repo>"
+      let projectId = 1
       const token = "<token>"
+      const issuesFormElem = document.getElementById("issues-form")
       const fetchTableBtnElem = document.getElementById("fetch-table-btn")
       const fetchCsvBtnElem = document.getElementById("fetch-csv-btn")
       const projectTitleContainerElem = document.getElementById(
@@ -231,9 +314,8 @@
         errorMsgElem.classList.add("hidden")
       }
 
-      const hideButtons = () => {
-        fetchTableBtnElem.classList.add("hidden")
-        fetchCsvBtnElem.classList.add("hidden")
+      const hideForm = () => {
+        issuesFormElem.classList.add("hidden")
       }
 
       const hideLoader = () => {
@@ -265,32 +347,32 @@
         }
       }
 
-      const parseIssues = type => {
+      const parseIssues = (csvSeparator = ",", type) => {
         let parsedIssues = []
 
         rawIssuesList.map(item => {
-          const assignees = item.content.assignees.nodes.map(
+          const assignees = item.content?.assignees?.nodes.map(
             assignee => assignee.login
           )
-          const status = item.fieldValues.nodes.find(obj =>
+          const status = item.fieldValues?.nodes.find(obj =>
             obj.field?.name ? obj.field.name === "Status" : false
           )
-          const milestone = item.fieldValues.nodes.find(obj =>
+          const milestone = item.fieldValues?.nodes.find(obj =>
             obj?.field?.name ? obj.field.name === "Milestone" : false
           )
-          const developmentArea = item.fieldValues.nodes.find(obj =>
+          const developmentArea = item.fieldValues?.nodes.find(obj =>
             obj?.field?.name ? obj.field.name === "Development area" : false
           )
-          const devEstimate = item.fieldValues.nodes.find(obj =>
+          const devEstimate = item.fieldValues?.nodes.find(obj =>
             obj?.field?.name ? obj.field.name === "Dev estimate" : false
           )
-          const sprint = item.fieldValues.nodes.find(obj =>
+          const sprint = item.fieldValues?.nodes.find(obj =>
             obj?.field?.name ? obj.field.name === "Sprint" : false
           )
 
           parsedIssues.push({
             title: item.content.title,
-            assignees: assignees.join("+"),
+            assignees: assignees ? assignees.join("+") : "",
             status: status ? status.name : "-",
             milestone: milestone ? milestone.milestone.title : "-",
             developmentArea: developmentArea ? developmentArea.name : "-",
@@ -299,16 +381,15 @@
           })
         })
 
-        setIssues(parsedIssues, type)
+        setIssues(parsedIssues, type, csvSeparator)
       }
 
-      const setIssues = (issues, type) => {
+      const setIssues = (issues, type, csvSeparator) => {
         if (type === "csv") {
-          let csvString =
-            "Title,Assignees,Status,Milestone,Development Area,Dev Estimate,Sprint\n"
+          let csvString = `Title${csvSeparator}Assignees${csvSeparator}Status${csvSeparator}Milestone${csvSeparator}Development Area${csvSeparator}Dev Estimate${csvSeparator}Sprint\n`
           for (let i in issues) {
             csvString = csvString.concat(
-              `${issues[i].title},${issues[i].assignees},${issues[i].status},${issues[i].milestone},${issues[i].developmentArea},${issues[i].devEstimate},${issues[i].sprint}\n`
+              `${issues[i].title}${csvSeparator}${issues[i].assignees}${csvSeparator}${issues[i].status}${csvSeparator}${issues[i].milestone}${csvSeparator}${issues[i].developmentArea}${csvSeparator}${issues[i].devEstimate}${csvSeparator}${issues[i].sprint}\n`
             )
           }
           issuesCsvElem.appendChild(document.createTextNode(csvString))
@@ -363,15 +444,23 @@
         }
       }
 
-      const handleFetch = async type => {
+      const handleFetch = async event => {
+        event.preventDefault()
+        const formData = new FormData(event.target)
+        const presentation = formData.get("presentation")
+        const csvSeparator = formData.get("separator")
+        owner = formData.get("owner")
+        projectId = formData.get("projectId")
+        repo = formData.get("repo")
+
         resetMessages()
-        hideButtons()
+        hideForm()
         showLoader()
 
         try {
           await fetchIssues()
           showTitle()
-          parseIssues(type)
+          parseIssues(csvSeparator, presentation)
         } catch (error) {
           console.error(error)
           showError()
@@ -380,8 +469,7 @@
         }
       }
 
-      fetchTableBtnElem.addEventListener("click", () => handleFetch("table"))
-      fetchCsvBtnElem.addEventListener("click", () => handleFetch("csv"))
+      issuesFormElem.addEventListener("submit", handleFetch)
     </script>
   </body>
 </html>

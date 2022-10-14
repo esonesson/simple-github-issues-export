@@ -136,7 +136,7 @@
         </div>
         <div class="input-container">
           <label for="repo">Repo</label>
-          <input type="text" name="repo" ir="repo" required />
+          <input type="text" name="repo" id="repo" required />
         </div>
         <div class="input-container">
           <label for="projectId">Project Id</label>
@@ -193,10 +193,14 @@
     </div>
 
     <script type="text/javascript">
-      let owner = "<owner>"
-      let repo = "<repo>"
-      let projectId = 1
+      // these will be overwritten by the form
+      let owner = ""
+      let repo = ""
+      let projectId = 0
+
+      // add your token here
       const token = "<token>"
+
       const issuesFormElem = document.getElementById("issues-form")
       const fetchTableBtnElem = document.getElementById("fetch-table-btn")
       const fetchCsvBtnElem = document.getElementById("fetch-csv-btn")
@@ -411,6 +415,40 @@
         showIssues(type)
       }
 
+      const initForm = () => {
+        const ownerInputElem = document.getElementById("owner")
+        const repoInputElem = document.getElementById("repo")
+        const projectIdInputElem = document.getElementById("projectId")
+        const separatorInputElem = document.getElementById("separator")
+        const presentationCsvInputElem = document.getElementById("type-csv")
+        const presentationTableInputElem = document.getElementById("type-table")
+
+        const persistedOwner = localStorage.getItem("owner")
+        const persistedRepo = localStorage.getItem("repo")
+        const persistedProjectId = localStorage.getItem("projectId")
+        const persistedSeparator = localStorage.getItem("separator")
+        const persistedPresentation = localStorage.getItem("presentation")
+
+        ownerInputElem.value = persistedOwner ? persistedOwner : ""
+        repoInputElem.value = persistedRepo ? persistedRepo : ""
+        projectIdInputElem.value = persistedProjectId ? persistedProjectId : ""
+        separatorInputElem.value = persistedSeparator ? persistedSeparator : ""
+
+        if (persistedPresentation === "csv") {
+          presentationCsvInputElem.setAttribute("checked", "")
+        } else if (persistedPresentation === "table") {
+          presentationTableInputElem.setAttribute("checked", "")
+        }
+      }
+
+      const persistData = (presentation, csvSeparator) => {
+        localStorage.setItem("owner", owner)
+        localStorage.setItem("repo", repo)
+        localStorage.setItem("projectId", projectId)
+        localStorage.setItem("separator", csvSeparator)
+        localStorage.setItem("presentation", presentation)
+      }
+
       const fetchIssues = async (after = "") => {
         const response = await fetch(`https://api.github.com/graphql`, {
           method: "POST",
@@ -449,9 +487,12 @@
         const formData = new FormData(event.target)
         const presentation = formData.get("presentation")
         const csvSeparator = formData.get("separator")
+
         owner = formData.get("owner")
         projectId = formData.get("projectId")
         repo = formData.get("repo")
+
+        persistData(presentation, csvSeparator)
 
         resetMessages()
         hideForm()
@@ -470,6 +511,7 @@
       }
 
       issuesFormElem.addEventListener("submit", handleFetch)
+      window.addEventListener("load", initForm)
     </script>
   </body>
 </html>

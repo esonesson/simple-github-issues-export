@@ -20,12 +20,9 @@ The fetched list contains the following data:
 
 ## Config
 
-There are just 4 variables to set:
+There is just 1 variables to set:
 
 ```
-const owner = "owner" // owner of the repo
-const repo = "repo" // repo name
-const projectId = 5 // project id
 const token = "token" // personal access token, to access private repos/projects.
 ```
 
@@ -37,4 +34,4 @@ Necessary scopes for the access token:
   - read:project
 ```
 
-So this is just a single HTML-file with some inline CSS and JS.
+So this is just a single HTML-file with some inline CSS and JS. Neither pretty or optimized code, but it does the job as an internal tool.

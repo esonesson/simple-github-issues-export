@@ -177,12 +177,14 @@
       <table id="issues-table" class="hidden">
         <thead>
           <tr>
+            <th>Issue Number</th>
             <th>Title</th>
             <th>Assignees</th>
             <th>Status</th>
             <th>Milestone</th>
             <th>Development Area</th>
-            <th>Dev Estimate</th>
+            <th>Current Estimate</th>
+            <th>Original Estimate</th>
             <th>Sprint</th>
           </tr>
         </thead>
@@ -231,6 +233,7 @@
               title
               items(first: 100, after: "${after}") {
                 nodes {
+                  id
                   fieldValues(first: 20) {
                     nodes {
                       ... on ProjectV2ItemFieldSingleSelectValue {
@@ -299,6 +302,7 @@
                           login
                         }
                       }
+                      number
                     }
                   }
                 }
@@ -351,6 +355,14 @@
         }
       }
 
+      const getFieldValueByName = (item, name, type) => {
+        const fieldValue = item.fieldValues?.nodes.find(obj =>
+          obj?.field?.name ? obj.field.name === name : false
+        )
+
+        return fieldValue && fieldValue[type] ? fieldValue[type] : "-"
+      }
+
       const parseIssues = (csvSeparator = ",", type) => {
         let parsedIssues = []
 
@@ -358,30 +370,31 @@
           const assignees = item.content?.assignees?.nodes.map(
             assignee => assignee.login
           )
-          const status = item.fieldValues?.nodes.find(obj =>
-            obj.field?.name ? obj.field.name === "Status" : false
-          )
-          const milestone = item.fieldValues?.nodes.find(obj =>
-            obj?.field?.name ? obj.field.name === "Milestone" : false
-          )
-          const developmentArea = item.fieldValues?.nodes.find(obj =>
-            obj?.field?.name ? obj.field.name === "Development area" : false
-          )
-          const devEstimate = item.fieldValues?.nodes.find(obj =>
-            obj?.field?.name ? obj.field.name === "Dev estimate" : false
-          )
-          const sprint = item.fieldValues?.nodes.find(obj =>
-            obj?.field?.name ? obj.field.name === "Sprint" : false
-          )
+
+          const issueNumber = item.content?.number
 
           parsedIssues.push({
+            issueNumber: issueNumber ? issueNumber : "-",
             title: item.content.title,
             assignees: assignees ? assignees.join("+") : "",
-            status: status ? status.name : "-",
-            milestone: milestone ? milestone.milestone.title : "-",
-            developmentArea: developmentArea ? developmentArea.name : "-",
-            devEstimate: devEstimate ? devEstimate.number : "-",
-            sprint: sprint ? sprint.title : "-",
+            status: getFieldValueByName(item, "Status", "name"),
+            milestone: getFieldValueByName(item, "Milestone", "title"),
+            developmentArea: getFieldValueByName(
+              item,
+              "Development area",
+              "name"
+            ),
+            currentEstimate: getFieldValueByName(
+              item,
+              "Current Estimate",
+              "number"
+            ),
+            originalEstimate: getFieldValueByName(
+              item,
+              "Original Estimate",
+              "number"
+            ),
+            sprint: getFieldValueByName(item, "Sprint", "title"),
           })
         })
 
@@ -390,10 +403,10 @@
 
       const setIssues = (issues, type, csvSeparator) => {
         if (type === "csv") {
-          let csvString = `Title${csvSeparator}Assignees${csvSeparator}Status${csvSeparator}Milestone${csvSeparator}Development Area${csvSeparator}Dev Estimate${csvSeparator}Sprint\n`
+          let csvString = `Issue Number${csvSeparator}Title${csvSeparator}Assignees${csvSeparator}Status${csvSeparator}Milestone${csvSeparator}Development Area${csvSeparator}Current Estimate${csvSeparator}Original estimate${csvSeparator}Sprint\n`
           for (let i in issues) {
             csvString = csvString.concat(
-              `${issues[i].title}${csvSeparator}${issues[i].assignees}${csvSeparator}${issues[i].status}${csvSeparator}${issues[i].milestone}${csvSeparator}${issues[i].developmentArea}${csvSeparator}${issues[i].devEstimate}${csvSeparator}${issues[i].sprint}\n`
+              `${issues[i].issueNumber}${csvSeparator}${issues[i].title}${csvSeparator}${issues[i].assignees}${csvSeparator}${issues[i].status}${csvSeparator}${issues[i].milestone}${csvSeparator}${issues[i].developmentArea}${csvSeparator}${issues[i].currentEstimate}${csvSeparator}${issues[i].originalEstimate}${csvSeparator}${issues[i].sprint}\n`
             )
           }
           issuesCsvElem.appendChild(document.createTextNode(csvString))
@@ -401,12 +414,14 @@
           for (let i in issues) {
             let tr = document.createElement("tr")
             tr.innerHTML = `
+            <td>${issues[i].issueNumber}</td>
             <td>${issues[i].title}</td>
             <td>${issues[i].assignees}</td>
             <td>${issues[i].status}</td>
             <td>${issues[i].milestone}</td>
             <td>${issues[i].developmentArea}</td>
-            <td>${issues[i].devEstimate}</td>
+            <td>${issues[i].currentEstimate}</td>
+            <td>${issues[i].originalEstimate}</td>
             <td>${issues[i].sprint}</td>
         `
             issuesTableRowsElem.appendChild(tr)

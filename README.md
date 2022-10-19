@@ -9,12 +9,14 @@ Nothing fancy, just an easy way to access data from the API to use in other soft
 The fetched list contains the following data:
 
 ```
+- Issue Number
 - Title
 - Assignees
 - Status (Custom Field)
 - Milestone
 - Development Area (Custom Field)
-- Dev Estimate (Custom Field)
+- Current Estimate (Custom Field)
+- Original Estimate (Custom Field)
 - Sprint (Custom Field)
 ```
 

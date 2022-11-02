@@ -373,12 +373,16 @@
 
           const issueNumber = item.content?.number
 
+          const milestone = item.fieldValues?.nodes.find(
+            obj => obj.field?.name === "Milestone"
+          )
+
           parsedIssues.push({
             issueNumber: issueNumber ? issueNumber : "-",
             title: item.content.title,
             assignees: assignees ? assignees.join("+") : "",
             status: getFieldValueByName(item, "Status", "name"),
-            milestone: getFieldValueByName(item, "Milestone", "title"),
+            milestone: milestone?.milestone.title,
             developmentArea: getFieldValueByName(
               item,
               "Development area",
